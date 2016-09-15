@@ -30,7 +30,7 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="DxLibDotNet">
-      <HintPath>..\..\DxLibDotNet\DxLibDotNet.dll</HintPath>
+      <HintPath>..\..\The_Medieval_Life_World_Editor\The_Medieval_Life_World_Editor\bin\Debug\DxLibDotNet.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>

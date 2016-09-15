@@ -49,6 +49,17 @@ namespace ThlGUI
 			this.Message = this.Message & (~message);
 			return;
 		}
+
+		public void CopyTo(out GUIMessage direction)
+		{
+			direction.Message = Message;
+			direction.MousePoint = MousePoint;
+			direction.MouseClickState = MouseClickState;
+			direction.MouseWheelInput = MouseWheelInput;
+			direction.KeyBuffer = KeyBuffer.Clone () as byte[];
+			direction.KeyBufferMask = KeyBufferMask.Clone () as byte[];
+			return;
+		}
 	}
 
 	public class EventArgs
@@ -72,6 +83,7 @@ namespace ThlGUI
 		/// <param name="path">Path to the resource file(.rsc).</param>
 		public static int OpenResource(string path)
 		{
+			return 0;
 		}
 	}
 	
@@ -91,13 +103,19 @@ namespace ThlGUI
 		private static Func<byte[]> KeyboardGettingMethod;
 		private static Func<int,bool> KeyboardStateGettingMethod;
 
-		private static List<Form> Collections;
+		private static List<Form> Collections = new List<Form>();
 		private static Form FocusedForm;
 		
 		private static GUIMessage Message;
 
 		public GraphicalUI()
 		{
+		}
+
+		public static void GraphicalUIinit()
+		{
+			Message.KeyBuffer = new byte[256];
+			Message.KeyBufferMask = new byte[256];
 		}
 
 		//CollectionsにFormを追加する。zソートは今はしない
@@ -126,7 +144,7 @@ namespace ThlGUI
 		//formをFocusedにする(前代のFocusを解除する)
 		public static void SetFocus(Form form)
 		{
-			FocusedForm.Unfocus();
+			FocusedForm.Unfocus(null, null);
 			FocusedForm = form;
 			return;
 		}
@@ -158,12 +176,11 @@ namespace ThlGUI
 		{
 			//1.Making Message
 			GUIMessage Msg = new GUIMessage();
-			Msg.KeyBufferMask = new byte[256];
 			//Collect inputs
 			Msg.MousePoint = MousePointGettingMethod();
 			Msg.MouseClickState = MouseClickGettingMethod();
 			Msg.KeyBuffer = KeyboardGettingMethod();
-			Message.KeyBuffer.CopyTo(Msg.KeyBufferMask, 0);
+			Msg.KeyBufferMask = Message.KeyBuffer.Clone () as byte[];
 			//CheckDifferences
 			//Mouse
 			//Cursor
@@ -175,7 +192,7 @@ namespace ThlGUI
 			{
 				Msg.AddMessage(Message_Mouse_LeftClick);
 				//クリック判定(長押しでない)
-				if ((Message.MouseClickState & DX.MOUSE_INPUT_LEFT) != 0) {
+				if (Message.MouseClickState != Msg.MouseClickState) {
 					Msg.AddMessage(Message_Mouse_Click);
 				}
 			}
@@ -183,7 +200,7 @@ namespace ThlGUI
 			{
 				Msg.AddMessage(Message_Mouse_RightClick);
 				//クリック判定(長押しでない)
-				if ((Message.MouseClickState & DX.MOUSE_INPUT_RIGHT) != 0) {
+				if (Message.MouseClickState != Msg.MouseClickState) {
 					Msg.AddMessage(Message_Mouse_Click);
 				}
 			}
@@ -191,7 +208,7 @@ namespace ThlGUI
 			{
 				Msg.AddMessage(Message_Mouse_MiddleClick);
 				//クリック判定(長押しでない)
-				if ((Message.MouseClickState & DX.MOUSE_INPUT_MIDDLE) != 0) {
+				if (Message.MouseClickState != Msg.MouseClickState) {
 					Msg.AddMessage(Message_Mouse_Click);
 				}
 			}
@@ -234,10 +251,10 @@ namespace ThlGUI
 	{
 		protected pointint Position;
 		protected pointint Size;
-		protected List<Control> Collections;
+		protected List<Control> Collections = new List<Control>();
 		protected Control ParentControl;
 		protected string Label;
-		protected GUIMessage Message;
+		protected GUIMessage Message = new GUIMessage();
 
 		//Skins
 		protected int SkinTop;
@@ -253,6 +270,7 @@ namespace ThlGUI
 		//Events
 		public event EventHandler Click;
 		public event EventHandler GotFocus;
+		public event EventHandler LostFocus;
 		public event EventHandler MouseHover;
 		public event EventHandler MouseLeave;
 		public event EventHandler MouseMove;
@@ -261,37 +279,60 @@ namespace ThlGUI
 		public event EventHandler Paint;
 			//And more...
 
-		//Parameter
-		protected bool FocusFlag;
-		protected bool PointFlag;
-
 		//Properties
-		public virtual bool Focused
-		{
-			get
-			{
-				return FocusFlag;
-			}
-			
-		}
+		public virtual bool Focused { get; private set; } = false;
 
 		//カーソルがControlの上に乗っているときにtrue
-		public virtual bool Pointed
+		public virtual bool Pointed { get; private set; } = false;
+
+		public virtual string Text { get; set; }
+
+
+		public Control()
 		{
-			get
-			{
-				return PointFlag;
+			//Focusをイベントに関連付ける
+			GotFocus += Focus;
+			LostFocus += Unfocus;
+		}
+
+		/// <summary>
+		/// Null例外を避けるイベントInvokeメソッドです.イベントはこれを経由してInvokeすることを推奨します.
+		/// </summary>
+		/// <param name="e">イベント</param>
+		/// <param name="sender">呼び出し主</param>
+		/// <param name="args">引数</param>
+		public void InvokeEvent(EventHandler e, Control sender, EventArgs args)
+		{
+			e ?.Invoke (sender, args);
+			return;
+		}
+
+		public virtual void AddChild(Control control)
+		{
+			Collections.Add (control);
+			return;
+		}
+
+		public virtual void RemoveChild(Control control)
+		{
+			for (int i = 0; i < Collections.Count; i++) {
+				if (Collections[i] == control) {
+					Collections.RemoveAt (i);
+					break;
+				}
 			}
+			return;
 		}
 
 		public virtual void SendMessage(GUIMessage message)
 		{
-			Message = message;
+			message.CopyTo (out Message);
 			//Collectionsにもメッセージを送ります
 			foreach (Control alge in Collections)
 			{
 				alge.SendMessage(message);
 			}
+			ProcessMessasge ();
 		}
 
 		public virtual int Render()
@@ -307,10 +348,11 @@ namespace ThlGUI
 			{
 				if (Pointed) {
 					if (!Focused) {
-						FocusFlag = true;
-						GotFocus(this, null);
+						InvokeEvent (GotFocus, this, null);
 					}
-					Click(this, null);
+					InvokeEvent (Click, this, null);
+				} else if (Focused) {
+					InvokeEvent (LostFocus, this, null);
 				}
 			}
 			//Message_Cursor_Move
@@ -319,16 +361,19 @@ namespace ThlGUI
 				if ((Message.MousePoint.x >= Position.x) && (Message.MousePoint.x <= Position.x + Size.x) &&
 					(Message.MousePoint.y >= Position.y) && (Message.MousePoint.y <= Position.x + Size.y)) {
 					if (!Pointed) {
-						PointFlag = true;
+						Pointed = true;
 					}
-					MouseHover(this, null);
 				}
 				else {
-					if (PointFlag) {
-						PointFlag = false;
-						MouseLeave(this, null);
+					if (Pointed) {
+						Pointed = false;
+						InvokeEvent(MouseLeave, this, null);
 					}
 				}
+			}
+			//Mouse Hover
+			if (Pointed) {
+				InvokeEvent(MouseHover, this, null);
 			}
 
 			//Collectionsのメッセージ処理も行います
@@ -339,10 +384,16 @@ namespace ThlGUI
 			return 0;
 		}
 
-		//アクティブ状態を解除する
-		public virtual void Unfocus()
+
+		public virtual void Focus(Control sender, EventArgs args)
 		{
-			FocusFlag = false;
+			Focused = true;
+			return;
+		}
+
+		public virtual void Unfocus(Control sender, EventArgs args)
+		{
+			Focused = false;
 			return;
 		}
 	}
@@ -382,25 +433,59 @@ namespace ThlGUI
 		{
 			return 0;
 		}
-
-		public override void SendMessage(GUIMessage message)
-		{
-			Message = message;
-		}
-
-		public override int ProcessMessasge()
-		{
-			//メッセージ処理をここに記述します。イベントの発生もここで行います。
-			return 0;
-		}
 	}
 
 	public class Button : Control
 	{
+		
 	}
 
 	public class Textbox : Control
 	{
+		private int InputHandle;
+		private int BufferSize;
+		private int SingleCharOnlyFlag;
+		private int NumberCharOnlyFlag;
+		private System.Text.StringBuilder Buffer;
+		private string Text { get; set; }
+
+		public Textbox()
+		{
+			GotFocus += InputAwait;
+			LostFocus += InputUnawait;
+		}
+
+		private void InputAwait(Control sender, EventArgs args)
+		{
+			if (InputHandle == -1) {
+				InputHandle = DX.MakeKeyInput (BufferSize, DX.FALSE, SingleCharOnlyFlag, NumberCharOnlyFlag);
+			}
+			DX.SetActiveKeyInput (InputHandle);
+			return;
+		}
+
+		private void InputUnawait(Control sender, EventArgs args)
+		{
+			Text = GetBuffer ();
+			DX.DeleteKeyInput (InputHandle);
+			InputHandle = -1;
+			return;
+		}
+
+		private string GetBuffer()
+		{
+			if (InputHandle == -1) {
+				return Text;
+			} else {
+				if (Buffer == null) {
+					Buffer = new System.Text.StringBuilder (BufferSize);
+				}
+				Buffer = new System.Text.StringBuilder (BufferSize);
+				DX.GetKeyInputString (Buffer, InputHandle);
+			}
+			return Buffer.ToString ();
+		}
+
 	}
 
 	public class Label : Control
