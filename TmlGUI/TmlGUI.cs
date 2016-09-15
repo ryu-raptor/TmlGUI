@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace ThlGUI
 {
-	delegate void EventHandler(Control sender, EventArgs args);
+	public delegate void EventHandler(Control sender, EventArgs args);
 	
 	public struct pointint
 	{
@@ -51,7 +51,7 @@ namespace ThlGUI
 		}
 	}
 
-	class EventArgs
+	public class EventArgs
 	{
 	}
 	
@@ -128,7 +128,7 @@ namespace ThlGUI
 			KeyboardGettingMethod += method;
 			return 0;
 		}
-		public static int SetKeyboardStateGettingMethod(Func<bool> method)
+		public static int SetKeyboardStateGettingMethod(Func<int,bool> method)
 		{
 			KeyboardStateGettingMethod += method;
 			return 0;
@@ -137,7 +137,8 @@ namespace ThlGUI
 		public static int Routine()
 		{
 			//1.Making Message
-			GUIMessage Msg;
+			GUIMessage Msg = new GUIMessage();
+			Msg.KeyBufferMask = new byte[256];
 			//Collect inputs
 			Msg.MousePoint = MousePointGettingMethod();
 			Msg.MouseClickState = MouseClickGettingMethod();
@@ -205,6 +206,7 @@ namespace ThlGUI
 			{
 				alge.Render();
 			}
+			return 0;
 		}
 	}
 
@@ -215,7 +217,7 @@ namespace ThlGUI
 		protected List<Control> Collections;
 		protected Control ParentControl;
 		protected string Label;
-		private GUIMessage Message;
+		protected GUIMessage Message;
 
 		//Skins
 		protected int SkinTop;
@@ -281,22 +283,21 @@ namespace ThlGUI
 		{
 			//メッセージ処理をここに記述します。イベントの発生もここで行います。
 			//Message_Mouse_Click
-			if ((Message & Message_Mouse_Click) != 0)
+			if ((Message.Message & GraphicalUI.Message_Mouse_Click) != 0)
 			{
 				if (Pointed) {
 					if (!Focused) {
 						FocusFlag = true;
-						GraphicalUI.SetFocus(this);
 						GotFocus(this, null);
 					}
 					Click(this, null);
 				}
 			}
 			//Message_Cursor_Move
-			if  ((Message & Message_Cursor_Move) != 0)
+			if  ((Message.Message & GraphicalUI.Message_Cursor_Move) != 0)
 			{
-				if ((Message.x >= Position.x) && (Message.x <= Position.x + Size.x) &&
-					(Message.y >= Position.y) && (Message.y <= Position.x + Size.y)) {
+				if ((Message.MousePoint.x >= Position.x) && (Message.MousePoint.x <= Position.x + Size.x) &&
+					(Message.MousePoint.y >= Position.y) && (Message.MousePoint.y <= Position.x + Size.y)) {
 					if (!Pointed) {
 						PointFlag = true;
 					}
@@ -342,6 +343,7 @@ namespace ThlGUI
 
 		public override int Render()
 		{
+			return 0;
 		}
 
 		public override void SendMessage(GUIMessage message)
