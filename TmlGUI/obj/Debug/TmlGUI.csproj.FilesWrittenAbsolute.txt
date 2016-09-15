@@ -3,3 +3,4 @@
 /home/ryu/MonoSolutions/TmlGUI/TmlGUI/bin/Debug/TmlGUI.dll
 /home/ryu/MonoSolutions/TmlGUI/TmlGUI/obj/Debug/TmlGUI.dll
 /home/ryu/MonoSolutions/TmlGUI/TmlGUI/obj/Debug/TmlGUI.dll.mdb
+/home/ryu/MonoSolutions/TmlGUI/TmlGUI/bin/Debug/DxLibDotNet.dll
