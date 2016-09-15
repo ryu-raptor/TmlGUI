@@ -1,9 +1,12 @@
 using System;
-using DxLib;
+using DxLibDLL;
 using System.Collections.Generic;
 
-namespace The_Medieval_Life
+
+namespace ThlGUI
 {
+	delegate void EventHandler(Control sender, EventArgs args);
+	
 	public struct pointint
 	{
 		public int x;
@@ -25,12 +28,7 @@ namespace The_Medieval_Life
 				return false;
 		}
 	}
-}
 
-namespace ThlGUI
-{
-	delegate void EventHandler(Control sender, EventArgs args);
-	
 	public struct GUIMessage
 	{
 		public int Message;
@@ -68,9 +66,9 @@ namespace ThlGUI
 		public const int Message_Mouse_RightClick = 64;
 		public const int Message_Mouse_MiddleClick = 128;
 		
-		private static Func<void,pointint> MousePointGettingMethod;
-		private static Func<void,int> MouseClickGettingMethod;
-		private static Func<void,byte[]> KeyboardGettingMethod;
+		private static Func<pointint> MousePointGettingMethod;
+		private static Func<int> MouseClickGettingMethod;
+		private static Func<byte[]> KeyboardGettingMethod;
 		private static Func<int,bool> KeyboardStateGettingMethod;
 
 		private static List<Form> Collections;
@@ -113,24 +111,24 @@ namespace ThlGUI
 			return;
 		}
 
-		public static int SetMousePointGettingMethod(Func<void,pointint> method)
+		public static int SetMousePointGettingMethod(Func<pointint> method)
 		{
-			MousePointGetting += method;
+			MousePointGettingMethod += method;
 			return 0;
 		}
 
-		public static int SetMouseClickGettingMethod(Func<void,int> method)
+		public static int SetMouseClickGettingMethod(Func<int> method)
 		{
 			MouseClickGettingMethod += method;
 			return 0;
 		}
 
-		public static int SetKeyboardGettingMethod(Func<void,byte[]> mehtod)
+		public static int SetKeyboardGettingMethod(Func<byte[]> method)
 		{
 			KeyboardGettingMethod += method;
 			return 0;
 		}
-		public static int SetKeyboardStateGettingMethod(Func<int,bool> method)
+		public static int SetKeyboardStateGettingMethod(Func<bool> method)
 		{
 			KeyboardStateGettingMethod += method;
 			return 0;
