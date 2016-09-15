@@ -363,6 +363,19 @@ namespace ThlGUI
 
 		public Form()
 		{
+			//Default setting of Form.
+			Position.x = 0;
+			Position.y = 0;
+			Size.x = 300;
+			Size.y = 300;
+		}
+
+		public Form(int px, int py, int width, int height, string label)
+		{
+			Position.x = px;
+			Position.y = py;
+			Size.x = width;
+			Size.y = height;
 		}
 
 		public override int Render()
