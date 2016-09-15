@@ -54,6 +54,26 @@ namespace ThlGUI
 	public class EventArgs
 	{
 	}
+
+	public class ResourceManager
+	{
+		public const int MaxResourceForControls = 4;
+		public const int ResourceForControl = 0;
+		public const int ResourceForForm = 1;
+		public const int ResourceForButton = 3;
+		public const int ResourceForTextBox = 4;
+
+		public static int[][] ResourceHandle = new int[MaxResourceForControls][];
+
+		/// <summary>
+		/// Opens the resource file.
+		/// </summary>
+		/// <returns>Success = 0, Failed = -1.</returns>
+		/// <param name="path">Path to the resource file(.rsc).</param>
+		public static int OpenResource(string path)
+		{
+		}
+	}
 	
 	public class GraphicalUI
 	{
@@ -340,6 +360,10 @@ namespace ThlGUI
 		protected int SkinTitleBarLeft;
 		protected int SkinTitleBarBottomLeft;
 		protected int SkinTitleBarBottomRight;
+
+		public Form()
+		{
+		}
 
 		public override int Render()
 		{
