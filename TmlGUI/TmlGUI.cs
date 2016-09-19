@@ -62,6 +62,97 @@ namespace ThlGUI
 		}
 	}
 
+	public class DXEx
+	{
+
+		/// <summary>
+		/// 指定文字数で折り返す DrawString. \nも使えます
+		/// </summary>
+		/// <returns>The wrap string.</returns>
+		/// <param name="x">The x coordinate.</param>
+		/// <param name="y">The y coordinate.</param>
+		/// <param name="textheight">文字の高さ(改行高さ)</param>
+		/// <param name="wraplength">折り返し文字数.</param>
+		/// <param name="text">Text.</param>
+		/// <param name="textcolor">Textcolor.</param>
+		public static int DrawWrapString (int x, int y, int textheight, int wraplength, string text, uint textcolor)
+		{
+			if (text == null)
+				return -1;
+			//文字列の分割
+			var Buffer = GenerateWrapString(wraplength, text);
+
+			//描画
+			int rv = 0;
+			foreach (var alge in Buffer) {
+				rv *= DX.DrawString (x, y, alge, textcolor) + 1;
+				y += textheight;
+			}
+			return rv - 1;
+		}
+
+		/// <summary>
+		/// String[] を改行しながら描画します
+		/// </summary>
+		/// <returns>The wrap string.</returns>
+		/// <param name="x">The x coordinate.</param>
+		/// <param name="y">The y coordinate.</param>
+		/// <param name="textheight">Textheight.</param>
+		/// <param name="text">GenerateWrapStringなどで生成されたstring配列</param>
+		/// <param name="textcolor">Textcolor.</param>
+		public static int DrawWrapString (int x, int y, int textheight, string[] text, uint textcolor)
+		{
+			//描画
+			int rv = 0;
+			foreach (var alge in text) {
+				rv *= DX.DrawString (x, y, alge, textcolor) + 1;
+				y += textheight;
+			}
+			return rv - 1;
+		}
+
+		/// <summary>
+		/// DrawWrapString関数用のラップ済みテキスト配列を生成します.速度向上にぜひ.
+		/// </summary>
+		/// <returns>The wrap string.</returns>
+		/// <param name="wraplength">折り返しする文字数</param>
+		/// <param name="text">Text.</param>
+		public static string[] GenerateWrapString (int wraplength, string text)
+		{
+			if (text == null)
+				return null;
+			//文字列の分割
+			int startp = 0;
+			int index = 0;
+			string MiniBuf;
+			List<string> Buffer = new List<string> ((text.Length / wraplength + 1) * 2);
+			Buffer.AddRange (text.Split ('\n'));
+			//折り返しの生成
+			while (index < Buffer.Count) {
+				startp = 0;
+				if (Buffer [index].Length <= wraplength) {
+					index++;
+					break;
+				}
+				while (startp < Buffer [index].Length) {
+					//1.文字列の抽出
+					if (startp + wraplength > Buffer [index].Length) {
+						MiniBuf = Buffer[index].Substring (startp);
+					} else {
+						MiniBuf = text.Substring (startp, wraplength);
+					}
+					Buffer.Insert (index, MiniBuf);
+					index++;
+					startp += wraplength;
+				}
+				Buffer.RemoveAt (index);
+			}
+
+			//変換して返す
+			return Buffer.ToArray ();
+		}
+	}
+
 	public class EventArgs
 	{
 	}
@@ -221,9 +312,9 @@ namespace ThlGUI
 			//省略
 
 			//2.Sending Message
-			foreach (Control alge in Collections)
-			{
-				alge.SendMessage(Msg);
+			for (int i = 0; i < Collections.Count; i++) {
+				Collections [i].SendMessage (Msg);
+				Collections [i].ProcessMessasge ();
 			}
 
 			//Zソート
@@ -257,6 +348,8 @@ namespace ThlGUI
 		protected GUIMessage Message = new GUIMessage();
 
 		//Skins
+		protected uint TextColor = DX.GetColor (0, 0, 0);
+		protected static readonly int AutoSkinMarge = 4; //周りのマージ(px)
 		protected int SkinTop;
 		protected int SkinBottom;
 		protected int SkinRight;
@@ -285,7 +378,7 @@ namespace ThlGUI
 		//カーソルがControlの上に乗っているときにtrue
 		public virtual bool Pointed { get; private set; } = false;
 
-		public virtual string Text { get; set; }
+		public virtual string Text { get; set; } = "";
 
 
 		public Control()
@@ -332,11 +425,54 @@ namespace ThlGUI
 			{
 				alge.SendMessage(message);
 			}
-			ProcessMessasge ();
+		}
+
+		public virtual void SetBounds(int x, int y, int width, int height)
+		{
+			Position = pointint.Get(x, y);
+			Size = pointint.Get(width, height);
+			return;
+		}
+
+		/// <summary>
+		/// スキン用に画像を切り抜き設定します。
+		/// </summary>
+		/// <param name="GHandle">グラフィックハンドル(DxLib)</param>
+		public virtual void SetSkin(int GHandle)
+		{
+			pointint GSize;
+			DX.GetGraphSize (GHandle, out GSize.x, out GSize.y);
+			SkinTop = DX.DerivationGraph (AutoSkinMarge, 0, GSize.x - (2 * AutoSkinMarge), AutoSkinMarge, GHandle);
+			SkinBottom = DX.DerivationGraph (AutoSkinMarge, GSize.y - AutoSkinMarge, GSize.x - (2 * AutoSkinMarge), AutoSkinMarge, GHandle);
+			SkinLeft = DX.DerivationGraph (0, AutoSkinMarge, AutoSkinMarge, GSize.y - (2 * AutoSkinMarge), GHandle);
+			SkinRight = DX.DerivationGraph (GSize.x - AutoSkinMarge, AutoSkinMarge, AutoSkinMarge, GSize.y - (2 * AutoSkinMarge), GHandle);
+			SkinTopLeft = DX.DerivationGraph (0, 0, AutoSkinMarge, AutoSkinMarge, GHandle);
+			SkinTopRight = DX.DerivationGraph (GSize.x - AutoSkinMarge, 0, AutoSkinMarge, AutoSkinMarge, GHandle);
+			SkinBottomLeft = DX.DerivationGraph (0, GSize.y - AutoSkinMarge, AutoSkinMarge, AutoSkinMarge, GHandle);
+			SkinBottomRight = DX.DerivationGraph (GSize.x - AutoSkinMarge, GSize.y - AutoSkinMarge, AutoSkinMarge, AutoSkinMarge, GHandle);
+			SkinBase = DX.DerivationGraph (AutoSkinMarge, AutoSkinMarge, GSize.x - (2 * AutoSkinMarge), GSize.y - (2 * AutoSkinMarge), GHandle);
+			return;
+		}
+
+		public virtual void SetSkin(string GPath)
+		{
+			SetSkin (DX.LoadGraph (GPath));
+			return;
 		}
 
 		public virtual int Render()
 		{
+			//ベースを描く
+			DX.DrawExtendGraph (Position.x + AutoSkinMarge, Position.y + AutoSkinMarge, Position.x + Size.x - AutoSkinMarge, Position.y + Size.y - AutoSkinMarge, SkinBase, DX.TRUE);
+			//枠を描く
+			DX.DrawExtendGraph (Position.x, Position.y + AutoSkinMarge, Position.x + AutoSkinMarge, Position.y + Size.y - AutoSkinMarge, SkinLeft, DX.TRUE);
+			DX.DrawExtendGraph (Position.x + Size.x - AutoSkinMarge, Position.y + AutoSkinMarge, Position.x + Size.x, Position.y + Size.y - AutoSkinMarge, SkinRight, DX.TRUE);
+			DX.DrawExtendGraph (Position.x + AutoSkinMarge, Position.y, Position.x + Size.x - AutoSkinMarge, Position.y + AutoSkinMarge, SkinTop, DX.TRUE);
+			DX.DrawExtendGraph (Position.x + AutoSkinMarge, Position.y + Size.y - AutoSkinMarge, Position.x + Size.x - AutoSkinMarge, Position.y + Size.y, SkinBottom, DX.TRUE);
+			DX.DrawGraph (Position.x, Position.y, SkinTopLeft, DX.TRUE);
+			DX.DrawGraph (Position.x, Position.y + Size.y - AutoSkinMarge, SkinBottomLeft, DX.TRUE);
+			DX.DrawGraph (Position.x + Size.x - AutoSkinMarge, Position.y, SkinTopRight, DX.TRUE);
+			DX.DrawGraph (Position.x + Size.x - AutoSkinMarge, Position.y + Size.y - AutoSkinMarge, SkinBottomRight, DX.TRUE);
 			return 0;
 		}
 
@@ -359,7 +495,7 @@ namespace ThlGUI
 			if  ((Message.Message & GraphicalUI.Message_Cursor_Move) != 0)
 			{
 				if ((Message.MousePoint.x >= Position.x) && (Message.MousePoint.x <= Position.x + Size.x) &&
-					(Message.MousePoint.y >= Position.y) && (Message.MousePoint.y <= Position.x + Size.y)) {
+					(Message.MousePoint.y >= Position.y) && (Message.MousePoint.y <= Position.y + Size.y)) {
 					if (!Pointed) {
 						Pointed = true;
 					}
@@ -377,9 +513,8 @@ namespace ThlGUI
 			}
 
 			//Collectionsのメッセージ処理も行います
-			foreach (Control alge in Collections)
-			{
-				alge.ProcessMessasge();
+			for (int i = 0; i < Collections.Count; i++) {
+				Collections [i].ProcessMessasge ();
 			}
 			return 0;
 		}
@@ -412,6 +547,9 @@ namespace ThlGUI
 		protected int SkinTitleBarBottomLeft;
 		protected int SkinTitleBarBottomRight;
 
+		//Design
+		protected pointint TitlebarTextOfset;
+
 		public Form()
 		{
 			//Default setting of Form.
@@ -419,6 +557,7 @@ namespace ThlGUI
 			Position.y = 0;
 			Size.x = 300;
 			Size.y = 300;
+			Text = "";
 		}
 
 		public Form(int px, int py, int width, int height, string label)
@@ -427,30 +566,71 @@ namespace ThlGUI
 			Position.y = py;
 			Size.x = width;
 			Size.y = height;
+			Text = label;
+			//Experimantal==========
+			SetSkin (@"./button.png");
+			//======================
 		}
 
 		public override int Render()
 		{
+			base.Render ();
+			DX.DrawString (Position.x + TitlebarTextOfset.x, Position.y + TitlebarTextOfset.y, Text, DX.GetColor (0, 0, 0));
+			foreach (var alge in Collections) {
+				alge.Render ();
+			}
 			return 0;
 		}
 	}
 
 	public class Button : Control
 	{
-		
+		private int StrWidth;
+		private int StrHeight;
+		private pointint TextUpLeft;
+
+		public override string Text {
+			set {
+				base.Text = value;
+				StrWidth = DX.GetDrawStringWidth (Text, Text.Length);
+				TextUpLeft.x = (Size.x - StrWidth) / 2;
+				TextUpLeft.y = (Size.y - StrHeight) / 2;
+			}
+		}
+
+		public Button()
+		{
+			Position = pointint.Get (0, 0);
+			Size = pointint.Get (200, 50);
+
+			//Experimantal=======
+			SetSkin (@"./button.png");
+			//===================
+		}
+
+		public override int Render()
+		{
+			base.Render ();
+			DX.DrawString (Position.x + TextUpLeft.x, Position.y + TextUpLeft.y, Text, TextColor);
+			return 0;
+		}
 	}
 
 	public class Textbox : Control
 	{
-		private int InputHandle;
+		private pointint TextUpLeft;
+		private int InputHandle = -1;
 		private int BufferSize;
-		private int SingleCharOnlyFlag;
-		private int NumberCharOnlyFlag;
+		private int SingleCharOnlyFlag = DX.FALSE;
+		private int NumberCharOnlyFlag = DX.FALSE;
 		private System.Text.StringBuilder Buffer;
-		private string Text { get; set; }
 
 		public Textbox()
 		{
+			BufferSize = 256;
+			Position = pointint.Get (0, 0);
+			Size = pointint.Get (200, 20);
+			Text = "Input Await";
 			GotFocus += InputAwait;
 			LostFocus += InputUnawait;
 		}
@@ -461,6 +641,7 @@ namespace ThlGUI
 				InputHandle = DX.MakeKeyInput (BufferSize, DX.FALSE, SingleCharOnlyFlag, NumberCharOnlyFlag);
 			}
 			DX.SetActiveKeyInput (InputHandle);
+			DX.SetKeyInputString (Text, InputHandle);
 			return;
 		}
 
@@ -480,10 +661,20 @@ namespace ThlGUI
 				if (Buffer == null) {
 					Buffer = new System.Text.StringBuilder (BufferSize);
 				}
-				Buffer = new System.Text.StringBuilder (BufferSize);
 				DX.GetKeyInputString (Buffer, InputHandle);
 			}
 			return Buffer.ToString ();
+		}
+
+		public override int Render()
+		{
+			Text = GetBuffer ();
+			base.Render ();
+			DX.DrawString (Position.x + TextUpLeft.x, Position.y + TextUpLeft.y, Text, TextColor);
+			foreach (var alge in Collections) {
+				alge.Render ();
+			}
+			return 0;
 		}
 
 	}
@@ -506,5 +697,43 @@ namespace ThlGUI
 
 	public class ListControl : Control
 	{
+	}
+
+	public class MessageBox : Form
+	{
+		private Button ResponceButton;
+		private string[] WrappedMessage;
+		private int WrapLength;
+		private pointint WrapBoxSize;
+
+		public MessageBox (string Message) : base (0, 0, 250, 200, "Message")
+		{
+			double CharWidth = (double)DX.GetDrawStringWidth (Message, Message.Length) / Message.Length;
+			WrapLength = (int)(200 / CharWidth); //ボックスの両端から25pxずつ引いたボックスのサイズで計算
+			WrapBoxSize.x = (int)(WrapLength * CharWidth);
+
+			WrappedMessage = DXEx.GenerateWrapString (11, Message);
+			ResponceButton = new Button ();
+			ResponceButton.SetBounds (15, 160, 100, 25);
+			AddChild (ResponceButton);
+			ResponceButton.Click += ResponceButton_Click;
+		}
+
+		void ResponceButton_Click (Control sender, EventArgs args)
+		{
+			Console.WriteLine (WrapBoxSize.x);
+			Console.WriteLine (WrapLength);
+			Console.WriteLine (sender);
+		}
+
+		public override int Render()
+		{
+			base.Render ();
+			DXEx.DrawWrapString (Position.x + (Size.x - WrapBoxSize.x) / 2, 10, 20, WrappedMessage, TextColor);
+			foreach (var alge in Collections) {
+				alge.Render ();
+			}
+			return 0;
+		}
 	}
 }
