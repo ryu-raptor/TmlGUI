@@ -127,19 +127,23 @@ namespace ThlGUI
 			string MiniBuf;
 			List<string> Buffer = new List<string> ((text.Length / wraplength + 1) * 2);
 			Buffer.AddRange (text.Split ('\n'));
+			foreach (var alge in Buffer) {
+				Console.WriteLine (alge);
+			}
 			//折り返しの生成
 			while (index < Buffer.Count) {
 				startp = 0;
 				if (Buffer [index].Length <= wraplength) {
 					index++;
-					break;
+					continue;
 				}
+
 				while (startp < Buffer [index].Length) {
 					//1.文字列の抽出
 					if (startp + wraplength > Buffer [index].Length) {
 						MiniBuf = Buffer[index].Substring (startp);
 					} else {
-						MiniBuf = text.Substring (startp, wraplength);
+						MiniBuf = Buffer[index].Substring (startp, wraplength);
 					}
 					Buffer.Insert (index, MiniBuf);
 					index++;
@@ -147,7 +151,6 @@ namespace ThlGUI
 				}
 				Buffer.RemoveAt (index);
 			}
-
 			//変換して返す
 			return Buffer.ToArray ();
 		}
@@ -620,7 +623,7 @@ namespace ThlGUI
 	{
 		private pointint TextUpLeft;
 		private int InputHandle = -1;
-		private int BufferSize;
+		private uint BufferSize;
 		private int SingleCharOnlyFlag = DX.FALSE;
 		private int NumberCharOnlyFlag = DX.FALSE;
 		private System.Text.StringBuilder Buffer;
@@ -659,7 +662,7 @@ namespace ThlGUI
 				return Text;
 			} else {
 				if (Buffer == null) {
-					Buffer = new System.Text.StringBuilder (BufferSize);
+					Buffer = new System.Text.StringBuilder ((int)BufferSize);
 				}
 				DX.GetKeyInputString (Buffer, InputHandle);
 			}
@@ -708,11 +711,12 @@ namespace ThlGUI
 
 		public MessageBox (string Message) : base (0, 0, 250, 200, "Message")
 		{
+			Console.WriteLine (DX.GetDrawStringWidth (Message, Message.Length).ToString () + "/" + Message.Length.ToString ());
 			double CharWidth = (double)DX.GetDrawStringWidth (Message, Message.Length) / Message.Length;
 			WrapLength = (int)(200 / CharWidth); //ボックスの両端から25pxずつ引いたボックスのサイズで計算
 			WrapBoxSize.x = (int)(WrapLength * CharWidth);
 
-			WrappedMessage = DXEx.GenerateWrapString (11, Message);
+			WrappedMessage = DXEx.GenerateWrapString (WrapLength, Message);
 			ResponceButton = new Button ();
 			ResponceButton.SetBounds (15, 160, 100, 25);
 			AddChild (ResponceButton);
